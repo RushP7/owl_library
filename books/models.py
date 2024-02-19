@@ -1,6 +1,16 @@
 from django.db import models
 
 class Book(models.Model):
+    """
+    Represents a book in the library.
+
+    Attributes:
+        title (str): The title of the book.
+        author (str): The author of the book.
+        owl_id (str): The unique ID of the book.
+        book_type (str): The type of the book (e.g., 'PB' for Paperback).
+    """
+
     TYPE_CHOICES = [
         ('PB', 'Paperback'),
         ('HC', 'Hardcover'),
