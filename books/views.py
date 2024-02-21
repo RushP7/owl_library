@@ -7,8 +7,6 @@ from .serializers import BookSerializer
 class BookList(generics.ListAPIView):
     """
     API endpoint to retrieve a list of all books in the library.
-
-    Inherits from ListAPIView provided by Django REST Framework.
     """
 
     queryset = Book.objects.all()
@@ -17,8 +15,6 @@ class BookList(generics.ListAPIView):
 class BookListByAuthor(generics.ListAPIView):
     """
     API endpoint to retrieve a list of all books by a specific author.
-
-    Inherits from ListAPIView provided by Django REST Framework.
     """
 
     serializer_class = BookSerializer
@@ -31,23 +27,38 @@ class BookListByAuthor(generics.ListAPIView):
         return Book.objects.filter(author=author)
     
 
-class BorrowBook(generics.UpdateAPIView):
+
+class BorrowBookAPIView(generics.UpdateAPIView):
     """
     API endpoint to borrow a book.
-
-    Inherits from UpdateAPIView provided by Django REST Framework.
     """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
 
     def update(self, request, *args, **kwargs):
-        book = self.get_object()
+        # Get the book based on owl_id or title and author combination
+        owl_id = request.data.get('owl_id')
+        title = request.data.get('title')
+        author = request.data.get('author')
+
+        if owl_id:
+            try:
+                book = Book.objects.get(owl_id=owl_id)
+            except Book.DoesNotExist:
+                return Response({"error": "Book not found"}, status=status.HTTP_404_NOT_FOUND)
+        elif title and author:
+            try:
+                book = Book.objects.get(title=title, author=author)
+            except Book.DoesNotExist:
+                return Response({"error": "Book not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"error": "Please provide owl_id or title and author combination"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if the book is available
         if not book.available:
             return Response({"error": "This book is already borrowed"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Update book availability and last borrowed date  
+        # Update book availability and last borrowed date
         book.available = False
         book.last_borrowed_date = timezone.now()
         book.save()
