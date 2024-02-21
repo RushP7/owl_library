@@ -3,7 +3,6 @@
 ## Work in Progress
 
 ## Installation
-## Installation
 Before running this project, you need to install the required packages and have PostgreSQL installed.
 
 1. Install the required packages:
@@ -20,3 +19,6 @@ Before running this project, you need to install the required packages and have 
     DATABASE_HOST=
     DATABASE_PORT=
     ```
+
+## Swagger Documentation
+You can access the Swagger documentation for this API by navigating to `/api/swagger/` after running the server.
