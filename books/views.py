@@ -28,7 +28,7 @@ class BookListByAuthor(generics.ListAPIView):
     
 
 
-class BorrowBookAPIView(generics.UpdateAPIView):
+class BorrowBook(generics.UpdateAPIView):
     """
     API endpoint to borrow a book.
     """
