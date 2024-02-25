@@ -1,32 +1,41 @@
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.response import Response
+from django.utils import timezone
 from rest_framework import generics, status
 from .models import Book
 from .serializers import BookSerializer
-from rest_framework.response import Response
-from django.utils import timezone
+
+
 
 class BookList(generics.ListAPIView):
     """
-    API endpoint to retrieve a list of all books in the library.
+    API endpoint to retrieve a list of all books, filtered by author or availability.
     """
-
-    queryset = Book.objects.all()
     serializer_class = BookSerializer
 
-class BookListByAuthor(generics.ListAPIView):
-    """
-    API endpoint to retrieve a list of all books by a specific author.
-    """
-
-    serializer_class = BookSerializer
-
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('author', openapi.IN_QUERY, description="Filter by author", type=openapi.TYPE_STRING),
+        openapi.Parameter('available', openapi.IN_QUERY, description="Filter by availability", type=openapi.TYPE_BOOLEAN)
+    ])
     def get_queryset(self):
         """
-        Returns a queryset of all books by a specific author.
+        Optionally restricts the returned books to a given author,
+        and filters on availability if requested.
         """
-        author = self.kwargs['author']
-        return Book.objects.filter(author=author)
+        queryset = Book.objects.all()
+        author = self.request.query_params.get('author', None)
+        available = self.request.query_params.get('available', None)
+
+        if author is not None:
+            queryset = queryset.filter(author__icontains=author)
+
+        if available is not None:
+            available = available.lower() in ['true', '1', 't']
+            queryset = queryset.filter(available=available)
+
+        return queryset
+
 
 
 class BorrowBook(generics.UpdateAPIView):
