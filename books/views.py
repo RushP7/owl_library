@@ -1,8 +1,10 @@
-from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework import generics, status
-from rest_framework.response import Response
 from .models import Book
 from .serializers import BookSerializer
+from rest_framework.response import Response
+from django.utils import timezone
 
 class BookList(generics.ListAPIView):
     """
@@ -25,7 +27,6 @@ class BookListByAuthor(generics.ListAPIView):
         """
         author = self.kwargs['author']
         return Book.objects.filter(author=author)
-    
 
 
 class BorrowBook(generics.UpdateAPIView):
@@ -34,6 +35,8 @@ class BorrowBook(generics.UpdateAPIView):
     """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
+    # allow only patch method
+    http_method_names = ['patch']
 
     def update(self, request, *args, **kwargs):
         # Get the book based on owl_id or title and author combination
@@ -60,7 +63,7 @@ class BorrowBook(generics.UpdateAPIView):
 
         # Update book availability and last borrowed date
         book.available = False
-        book.last_borrowed_date = timezone.now()
+        book.last_borrowed = timezone.now()
         book.save()
 
         return Response({"message": "Book borrowed successfully"}, status=status.HTTP_200_OK)
