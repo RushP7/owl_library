@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import generics, status
 from .models import Book
 from .serializers import BookSerializer
+from .models import BorrowHistory
 
 
 
@@ -52,6 +53,7 @@ class BorrowBook(generics.UpdateAPIView):
         owl_id = request.data.get('owl_id')
         title = request.data.get('title')
         author = request.data.get('author')
+        user = request.user
 
         if owl_id:
             try:
@@ -69,6 +71,15 @@ class BorrowBook(generics.UpdateAPIView):
         # Check if the book is available
         if not book.available:
             return Response({"error": "This book is already borrowed"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        recent_borrow = BorrowHistory.objects.filter(
+            book=book, 
+            user=user, 
+            borrow_date__gte=timezone.now() - timezone.timedelta(days=90)
+        ).exists()
+
+        if recent_borrow:
+            return Response({"error": "You have already borrowed this book in the last 90 days"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Update book availability and last borrowed date
         book.available = False

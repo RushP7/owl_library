@@ -28,6 +28,14 @@ class Book(models.Model):
         return f"{self.title} by {self.author}"
 
 class BorrowHistory(models.Model):
+    """
+    Represents the history of a book being borrowed.
+
+    Attributes:
+        user (User): The user who borrowed the book.
+        book (Book): The book that was borrowed.
+        borrow_date (datetime): The date and time the book was borrowed.
+    """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='borrow_history')
     book = models.ForeignKey('Book', on_delete=models.CASCADE)
     borrow_date = models.DateTimeField(default=timezone.now)
