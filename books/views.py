@@ -20,10 +20,6 @@ class BookList(generics.ListAPIView):
         openapi.Parameter('available', openapi.IN_QUERY, description="Filter by availability", type=openapi.TYPE_BOOLEAN)
     ])
     def get_queryset(self):
-        """
-        Optionally restricts the returned books to a given author,
-        and filters on availability if requested.
-        """
         queryset = Book.objects.all()
         author = self.request.query_params.get('author', None)
         available = self.request.query_params.get('available', None)
@@ -33,7 +29,11 @@ class BookList(generics.ListAPIView):
 
         if available is not None:
             available = available.lower() in ['true', '1', 't']
-            queryset = queryset.filter(available=available)
+            # less efficient for large datasets.
+            if available:
+                queryset = [book for book in queryset if book.is_returned()]
+            else:
+                queryset = [book for book in queryset if not book.is_returned()]
 
         return queryset
 
