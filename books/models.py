@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from datetime import timedelta
 
 User = get_user_model()
 
@@ -24,9 +25,45 @@ class Book(models.Model):
     available = models.BooleanField(default=True)
     last_borrowed = models.DateTimeField(null=True, blank=True)
 
+    def can_be_borrowed(self, user):
+        """Checks if the book can be borrowed by the given user, considering all rules."""
+        if not self.available or not self.is_returned():
+            return False
+
+        if self.is_popular_author():
+            six_months_ago = timezone.now() - timedelta(days=6*30)  # Approximation of 6 months
+            borrowed_books = BorrowHistory.objects.filter(
+                user=user, 
+                book__author=self.author,
+                borrow_date__gte=six_months_ago,
+            )
+            if borrowed_books.exists():
+                return False
+        return True
+    
+    def check_and_update_availability(self):
+        """Updates the book's availability based on the 14-day return policy."""
+        if not self.available and self.is_returned():
+            self.available = True
+            self.last_borrowed = None
+            self.save(update_fields=['available', 'last_borrowed'])
+
+    def is_returned(self):
+        """Checks if the book is considered returned after 14 days."""
+        if self.available:
+            return True
+        if self.last_borrowed and timezone.now() > self.last_borrowed + timedelta(days=14):
+            return True
+        return False
+    
+
+    def is_popular_author(self):
+        """Determines if the book is by a popular author (name starts with 'J')."""
+        return str(self.author).startswith('J')
+
     def __str__(self):
         return f"{self.title} by {self.author}"
-
+    
 class BorrowHistory(models.Model):
     """
     Represents the history of a book being borrowed.
