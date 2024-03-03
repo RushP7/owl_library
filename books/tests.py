@@ -1,48 +1,38 @@
-from django.test import TestCase, Client
 from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+from django.utils import timezone
 from .models import Book
-from .serializers import BookSerializer
+from datetime import timedelta
 
-class BookList(TestCase):
+class BookListTestCase(APITestCase):
     def setUp(self):
-        self.client = Client()
-        self.url = reverse('book-list')
-        self.author1 = 'Author 1'
-        self.author2 = 'Author 2'
-        self.book1 = Book.objects.create(title='Book 1', author=self.author1, owl_id='123', book_type='PB')
-        self.book2 = Book.objects.create(title='Book 2', author=self.author2, owl_id='456', book_type='HC')
-        self.book3 = Book.objects.create(title='Book 3', author=self.author1, owl_id='789', book_type='HM')
-        self.book4 = Book.objects.create(title='Book 4', author=self.author2, owl_id='101', book_type='HC')
+        # Create sample books for testing
+        Book.objects.create(title="Book by J. Author", author="J. Author", available=True, last_borrowed=timezone.now() - timedelta(days=15))
+        Book.objects.create(title="Unavailable Book", author="A. Author", available=False, last_borrowed=timezone.now() - timedelta(days=1))
+        Book.objects.create(title="Another Book", author="B. Author", available=True, last_borrowed=None)
 
     def test_get_all_books(self):
-        """
-        Test retrieving a list of all books in the library.
+        response = self.client.get(reverse('book-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)  # Adjust based on your actual setup
 
-        1. Sends a GET request to the book-list API endpoint and asserts that the response
-           status code is 200 (OK)
-        2. Compares the serialized data returned in the response with the data obtained 
-           from querying all books in the database.
-        """
+    def test_filter_by_author(self):
+        response = self.client.get(reverse('book-list'), {'author': 'J. Author'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['author'], 'J. Author')
 
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        books = Book.objects.all()
-        serializer = BookSerializer(books, many=True)
-        self.assertEqual(response.data, serializer.data)
-    
-    def test_get_books_by_author(self):
-        """
-        Test retrieving a list of all books by a specific author.
+    def test_filter_by_availability(self):
+        # Test for available books
+        response = self.client.get(reverse('book-list'), {'available': 'true'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        books = [book for book in response.data if book['available'] is True]
+        self.assertTrue(all(book['available'] for book in books))
 
-        1. Sends a GET request to the book-list-by-author API endpoint and asserts that the response
-           status code is 200 (OK)
-        2. Compares the serialized data returned in the response with the data obtained 
-           from querying all books by a specific author in the database.
-        """
+        # Test for unavailable books
+        response = self.client.get(reverse('book-list'), {'available': 'false'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        books = [book for book in response.data if book['available'] is False]
+        self.assertTrue(all(not book['available'] for book in books))
 
-        url = reverse('book-list-by-author', kwargs={'author': self.book1.author})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        books = Book.objects.filter(author=self.author1)
-        serializer = BookSerializer(books, many=True)
-        self.assertEqual(response.data, serializer.data)

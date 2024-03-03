@@ -1,9 +1,15 @@
 from django.db import models
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 
-User = get_user_model()
+class User(models.Model):
+    """
+    Represents a simplified user model with just a unique userid.
+    """
+    userid = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return str(self.userid)
 
 class Book(models.Model):
     """
@@ -78,4 +84,4 @@ class BorrowHistory(models.Model):
     borrow_date = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f"{self.user.username} borrowed {self.book.title}"
+        return f"{self.user.userid} borrowed {self.book.title}"
