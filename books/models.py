@@ -46,20 +46,18 @@ class Book(models.Model):
             if borrowed_books.exists():
                 return False
         return True
-    
-    def check_and_update_availability(self):
-        """Updates the book's availability based on the 14-day return policy."""
-        if not self.available and self.is_returned():
+
+    def is_returned(self):
+        """Checks if the book is considered returned after 14 days, also updates the availability."""
+        if self.available:
+            return True
+        #not available
+        if self.last_borrowed and timezone.now() > self.last_borrowed + timedelta(days=14):
             self.available = True
             self.last_borrowed = None
             self.save(update_fields=['available', 'last_borrowed'])
-
-    def is_returned(self):
-        """Checks if the book is considered returned after 14 days."""
-        if self.available:
             return True
-        if self.last_borrowed and timezone.now() > self.last_borrowed + timedelta(days=14):
-            return True
+        #less than 14 days
         return False
     
 
