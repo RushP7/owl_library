@@ -29,7 +29,6 @@ class BookList(generics.ListAPIView):
 
         if available is not None:
             available = available.lower() in ['true', '1', 't']
-            # less efficient for large datasets.
             if available:
                 queryset = [book for book in queryset if book.is_returned()]
             else:
