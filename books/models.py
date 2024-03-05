@@ -33,7 +33,7 @@ class Book(models.Model):
 
     def can_be_borrowed(self, user):
         """Checks if the book can be borrowed by the given user, considering all rules."""
-        if not self.available or not self.is_returned():
+        if not self.is_returned():
             return False
 
         if self.is_popular_author():
@@ -51,13 +51,13 @@ class Book(models.Model):
         """Checks if the book is considered returned after 14 days, also updates the availability."""
         if self.available:
             return True
-        #not available
+        # not available
         if self.last_borrowed and timezone.now() > self.last_borrowed + timedelta(days=14):
             self.available = True
             self.last_borrowed = None
             self.save(update_fields=['available', 'last_borrowed'])
             return True
-        #less than 14 days
+        # less than 14 days
         return False
     
 
