@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import generics, status
 from .models import Book
 from .serializers import BookSerializer
-from .models import BorrowHistory
+from .models import BorrowHistory, User
 
 
 
@@ -52,7 +52,13 @@ class BorrowBook(generics.UpdateAPIView):
         owl_id = request.data.get('owl_id')
         title = request.data.get('title')
         author = request.data.get('author')
-        user = request.user
+        user_id = request.data.get('user_id')
+
+        # verify userid
+        try:
+            user = User.objects.get(user_id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if owl_id:
             try:
@@ -67,22 +73,17 @@ class BorrowBook(generics.UpdateAPIView):
         else:
             return Response({"error": "Please provide owl_id or title and author combination"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if the book is available
-        if not book.available:
-            return Response({"error": "This book is already borrowed"}, status=status.HTTP_400_BAD_REQUEST)
+        # Check if the book can be borrowed
+        if not book.can_be_borrowed(user):
+            return Response({"error": "This book cannot be borrowed based on the borrowing rules."}, status=status.HTTP_400_BAD_REQUEST)
         
-        recent_borrow = BorrowHistory.objects.filter(
-            book=book, 
-            user=user, 
-            borrow_date__gte=timezone.now() - timezone.timedelta(days=90)
-        ).exists()
-
-        if recent_borrow:
-            return Response({"error": "You have already borrowed this book in the last 90 days"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Update book availability and last borrowed date
         book.available = False
         book.last_borrowed = timezone.now()
         book.save()
+
+        # Log the borrow history
+        BorrowHistory.objects.create(user=user, book=book, borrow_date=timezone.now())
 
         return Response({"message": "Book borrowed successfully"}, status=status.HTTP_200_OK)
