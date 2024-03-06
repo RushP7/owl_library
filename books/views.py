@@ -6,6 +6,8 @@ from rest_framework import generics, status
 from .models import Book
 from .serializers import BookSerializer
 from .models import BorrowHistory, User
+from django.shortcuts import get_object_or_404
+from datetime import timedelta
 
 
 
@@ -55,16 +57,10 @@ class BorrowBook(generics.UpdateAPIView):
         user_id = request.data.get('user_id')
 
         # verify userid
-        try:
-            user = User.objects.get(user_id=user_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        user = get_object_or_404(User, user_id=user_id)
 
         if owl_id:
-            try:
-                book = Book.objects.get(owl_id=owl_id)
-            except Book.DoesNotExist:
-                return Response({"error": "Book not found"}, status=status.HTTP_404_NOT_FOUND)
+            book = get_object_or_404(Book, owl_id=owl_id)
         elif title and author:
             try:
                 book = Book.objects.get(title=title, author=author)
@@ -106,16 +102,10 @@ class ReturnBook(generics.UpdateAPIView):
         owl_id = request.data.get('owl_id')
 
         # Validate user
-        try:
-            user = User.objects.get(user_id=user_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        user = get_object_or_404(User, user_id=user_id)
 
         # Validate book
-        try:
-            book = Book.objects.get(owl_id=owl_id)
-        except Book.DoesNotExist:
-            return Response({"error": "Book not found"}, status=status.HTTP_404_NOT_FOUND)
+        book = get_object_or_404(Book, owl_id=owl_id)
            
         #retrieve users borrow history
         try:
@@ -136,3 +126,36 @@ class ReturnBook(generics.UpdateAPIView):
         borrow_history.save()
 
         return Response({"message": "Book returned successfully"}, status=status.HTTP_200_OK)
+    
+class BookAvailabilityView(generics.ListAPIView):
+    """
+    API endpoint to check when a user can next borrow a specific book.
+    """
+    
+    def get(self, request, *args, **kwargs):
+        user_id = request.query_params.get('user_id')
+        owl_id = request.query_params.get('owl_id')
+
+        # Validate user and book
+        user = get_object_or_404(User, user_id=user_id)
+        book = get_object_or_404(Book, owl_id=owl_id)
+        
+        # If the book can be borrowed now
+        if book.can_be_borrowed(user):
+            return Response({"message": "Book can be borrowed now."})
+
+        # For books by popular authors that cannot be borrowed now
+        if book.is_popular_author():
+            last_borrowed = BorrowHistory.objects.filter(user=user, book__author=book.author).latest('borrow_date').borrow_date
+            next_available_date = last_borrowed + timedelta(days=6*30)  # 6 months
+            message = "Book can be borrowed on or after {}".format(next_available_date.date())
+            return Response({"message": message})
+
+        # For books currently borrowed by someone else
+        if not book.available:
+            # Assuming book will be returned in 14 days from the last borrowed date
+            next_available_date = book.last_borrowed + timedelta(days=14)
+            message = "Book can be borrowed on or after {}".format(next_available_date.date())
+            return Response({"message": message})
+
+        return Response({"error": "Unable to determine availability."}, status=status.HTTP_400_BAD_REQUEST)
