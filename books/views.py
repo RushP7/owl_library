@@ -116,10 +116,7 @@ class ReturnBook(generics.UpdateAPIView):
             book = Book.objects.get(owl_id=owl_id)
         except Book.DoesNotExist:
             return Response({"error": "Book not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        if book.available:
-            return Response({"error": "This book is already available"}, status=status.HTTP_400_BAD_REQUEST)
-        
+           
         #retrieve users borrow history
         try:
             borrow_history = BorrowHistory.objects.get(user=user, book=book, borrow_date=book.last_borrowed)
@@ -127,7 +124,6 @@ class ReturnBook(generics.UpdateAPIView):
             return Response({"error": "This book is not currently borrowed by this user"}, status=status.HTTP_400_BAD_REQUEST)
         
         if borrow_history.returned:
-            book.available = True
             return Response({"error": "This book was already returned"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Mark the book as available
