@@ -80,6 +80,7 @@ class BorrowHistory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='borrow_history')
     book = models.ForeignKey('Book', on_delete=models.CASCADE)
     borrow_date = models.DateTimeField(default=timezone.now)
+    returned = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.user.userid} borrowed {self.book.title}"
+        return f"{self.user.user_id} borrowed {self.book.title}"

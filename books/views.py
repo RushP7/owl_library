@@ -79,11 +79,64 @@ class BorrowBook(generics.UpdateAPIView):
         
 
         # Update book availability and last borrowed date
+        current_date = timezone.now() # var ensures that the time is consistent between the book and borrow history objects
         book.available = False
-        book.last_borrowed = timezone.now()
+        book.last_borrowed = current_date
         book.save()
 
         # Log the borrow history
-        BorrowHistory.objects.create(user=user, book=book, borrow_date=timezone.now())
+        BorrowHistory.objects.create(user=user, book=book, borrow_date=current_date)
 
         return Response({"message": "Book borrowed successfully"}, status=status.HTTP_200_OK)
+    
+
+
+class ReturnBook(generics.UpdateAPIView):
+    """
+    API endpoint to return a borrowed book.
+    """
+
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+    # allow only patch method
+    http_method_names = ['patch']
+
+    def update(self, request, *args, **kwargs):
+        user_id = request.data.get('user_id')
+        owl_id = request.data.get('owl_id')
+
+        # Validate user
+        try:
+            user = User.objects.get(user_id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Validate book
+        try:
+            book = Book.objects.get(owl_id=owl_id)
+        except Book.DoesNotExist:
+            return Response({"error": "Book not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if book.available:
+            return Response({"error": "This book is already available"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        #retrieve users borrow history
+        try:
+            borrow_history = BorrowHistory.objects.get(user=user, book=book, borrow_date=book.last_borrowed)
+        except BorrowHistory.DoesNotExist:
+            return Response({"error": "This book is not currently borrowed by this user"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if borrow_history.returned:
+            book.available = True
+            return Response({"error": "This book was already returned"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark the book as available
+        book.available = True
+        book.last_borrowed = None
+        book.save()
+
+        # Log the return history
+        borrow_history.returned = True
+        borrow_history.save()
+
+        return Response({"message": "Book returned successfully"}, status=status.HTTP_200_OK)
