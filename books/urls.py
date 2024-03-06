@@ -5,5 +5,5 @@ urlpatterns = [
     path('books/', views.BookList.as_view(), name='book-list'),
     path('books/borrow/', views.BorrowBook.as_view(), name='borrow-book'),
     path('books/return/', views.ReturnBook.as_view(), name='return-book'),
-    path('books/check/', views.BookAvailabilityView.as_view(), name='check-borrowed'),
+    path('books/check/', views.BookAvailabilityView.as_view(), name='book-availability'),
 ]
